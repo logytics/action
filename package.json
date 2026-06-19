@@ -1,5 +1,5 @@
 {
-  "name": "buildlens-action",
+  "name": "logytics-action",
   "version": "1.0.0",
   "description": "AI-powered GitHub Actions failure analysis",
   "main": "src/index.js",

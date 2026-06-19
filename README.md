@@ -1,4 +1,4 @@
-# BuildLens
+# Logytics
 
 AI-powered GitHub Actions failure analysis. Get instant, developer-friendly explanations for CI failures without reading through long logs.
 
@@ -12,22 +12,22 @@ AI-powered GitHub Actions failure analysis. Get instant, developer-friendly expl
 
 ## Quick Start
 
-Add BuildLens to your workflow:
+Add Logytics to your workflow:
 
 ```yaml
-- uses: buildlens/action@v1
+- uses: logytics/action@v1
   if: failure()
   with:
     openai-api-key: ${{ secrets.OPENAI_API_KEY }}
 ```
 
-That's it! When a step fails, BuildLens will analyze the logs and provide an explanation in the workflow summary.
+That's it! When a step fails, Logytics will analyze the logs and provide an explanation in the workflow summary.
 
 ## Example Output
 
-When a step fails with an error like `Cannot find module 'redis'`, BuildLens generates:
+When a step fails with an error like `Cannot find module 'redis'`, Logytics generates:
 
-### BuildLens Analysis
+### Logytics Analysis
 
 #### Root Cause
 Missing dependency: `redis` is not installed in the project
@@ -93,8 +93,8 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: BuildLens Analysis
-        uses: buildlens/action@v1
+      - name: Logytics Analysis
+        uses: logytics/action@v1
         if: failure()
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -102,7 +102,7 @@ jobs:
 
 ## How It Works
 
-1. **Detect Failure**: BuildLens runs only when a previous step fails (`if: failure()`)
+1. **Detect Failure**: Logytics runs only when a previous step fails (`if: failure()`)
 2. **Collect Logs**: Extracts logs from failed steps using the GitHub API
 3. **Clean Logs**: Removes noise (ANSI codes, progress bars, debug output) while keeping errors and stack traces
 4. **AI Analysis**: Sends cleaned logs to OpenAI for analysis
@@ -112,12 +112,12 @@ jobs:
 
 - Logs are sent to OpenAI for analysis
 - Use your own OpenAI API key
-- No data is stored or collected by BuildLens
+- No data is stored or collected by Logytics
 - Recommended: use with private repositories cautiously
 
 ## Using with Self-Hosted Runners
 
-BuildLens works with self-hosted runners. Ensure your runner has:
+Logytics works with self-hosted runners. Ensure your runner has:
 
 - Node.js 20 or later
 - Network access to `api.openai.com`
@@ -125,7 +125,7 @@ BuildLens works with self-hosted runners. Ensure your runner has:
 
 ## Cost Considerations
 
-BuildLens uses OpenAI's API which has associated costs:
+Logytics uses OpenAI's API which has associated costs:
 
 - Default model: `gpt-4o-mini` (most cost-effective)
 - Typical analysis: ~500-2000 tokens

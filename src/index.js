@@ -16,7 +16,7 @@ async function run() {
       throw new Error('GitHub token is required. Provide it via github-token input or GITHUB_TOKEN environment variable.');
     }
 
-    core.info('BuildLens: Starting failure analysis...');
+    core.info('Logytics: Starting failure analysis...');
 
     let workflowInfo = null;
     try {
@@ -58,9 +58,9 @@ async function run() {
     core.setOutput('suggested-fix', analysis.suggestedFix || '');
     core.setOutput('confidence', analysis.confidence.toString());
 
-    core.info('BuildLens analysis complete!');
+    core.info('Logytics analysis complete!');
   } catch (error) {
-    core.setFailed(`BuildLens failed: ${error.message}`);
+    core.setFailed(`Logytics failed: ${error.message}`);
   }
 }
 

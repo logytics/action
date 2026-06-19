@@ -1,7 +1,7 @@
-# Example workflow showing BuildLens usage
+# Example workflow showing Logytics usage
 # Copy this to your repository and customize as needed
 
-name: CI with BuildLens
+name: CI with Logytics
 
 on:
   push:
@@ -33,9 +33,9 @@ jobs:
       - name: Build
         run: npm run build
 
-      # BuildLens analyzes failures and provides AI-powered explanations
-      - name: BuildLens Analysis
-        uses: buildlens/action@v1
+      # Logytics analyzes failures and provides AI-powered explanations
+      - name: Logytics Analysis
+        uses: logytics/action@v1
         if: failure()
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}

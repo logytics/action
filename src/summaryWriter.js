@@ -9,7 +9,7 @@ function getConfidenceEmoji(confidence) {
 async function writeSummary(analysis, workflowInfo = null) {
   const summary = core.summary;
 
-  summary.addHeading('BuildLens Analysis', 1);
+  summary.addHeading('Logytics Analysis', 1);
 
   if (workflowInfo) {
     summary.addRaw(`<sub>Workflow: ${workflowInfo.name} | Branch: ${workflowInfo.branch} | Commit: ${workflowInfo.sha}</sub>\n\n`);
@@ -47,7 +47,7 @@ async function writeSummary(analysis, workflowInfo = null) {
   summary.addRaw(`${emoji} **${analysis.confidence}%**\n\n`);
 
   summary.addSeparator();
-  summary.addRaw('<sub>Powered by <a href="https://github.com/buildlens/action">BuildLens</a></sub>\n');
+  summary.addRaw('<sub>Powered by <a href="https://github.com/logytics/action">Logytics</a></sub>\n');
 
   await summary.write();
 

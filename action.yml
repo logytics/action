@@ -1,6 +1,6 @@
-name: 'BuildLens'
+name: 'Logytics'
 description: 'AI-powered GitHub Actions failure analysis - get instant explanations for CI failures'
-author: 'BuildLens'
+author: 'Logytics'
 
 branding:
   icon: 'search'
