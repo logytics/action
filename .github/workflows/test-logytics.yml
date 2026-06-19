@@ -1,0 +1,48 @@
+# Test workflow to verify Logytics is working
+name: Test Logytics
+
+on:
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deliberate Failure
+        id: fail
+        run: |
+          echo "Installing dependencies..."
+          echo "Running application..."
+          echo "Error: Cannot find module 'redis'"
+          echo "    at Function.Module._resolveFilename (node:internal/modules/cjs/loader:1048:15)"
+          echo "    at Function.Module._load (node:internal/modules/cjs/loader:901:27)"
+          echo "    at Module.require (node:internal/modules/cjs/loader:1115:19)"
+          echo "    at require (node:internal/modules/helpers:130:18)"
+          echo "    at Object.<anonymous> (/app/src/index.js:3:15)"
+          echo "npm ERR! Test failed. See above for more details."
+          exit 1
+        continue-on-error: true
+
+      - name: Capture logs
+        if: steps.fail.outcome == 'failure'
+        run: |
+          echo "FAILED_LOGS<<EOF" >> $GITHUB_ENV
+          echo "Error: Cannot find module 'redis'" >> $GITHUB_ENV
+          echo "    at Function.Module._resolveFilename (node:internal/modules/cjs/loader:1048:15)" >> $GITHUB_ENV
+          echo "    at Function.Module._load (node:internal/modules/cjs/loader:901:27)" >> $GITHUB_ENV
+          echo "    at Module.require (node:internal/modules/cjs/loader:1115:19)" >> $GITHUB_ENV
+          echo "    at require (node:internal/modules/helpers:130:18)" >> $GITHUB_ENV
+          echo "    at Object.<anonymous> (/app/src/index.js:3:15)" >> $GITHUB_ENV
+          echo "npm ERR! Test failed. See above for more details." >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Logytics Analysis
+        if: steps.fail.outcome == 'failure'
+        uses: logytics/action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          logs: ${{ env.FAILED_LOGS }}
+
+      - name: Fail workflow
+        if: steps.fail.outcome == 'failure'
+        run: exit 1
