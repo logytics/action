@@ -22,8 +22,10 @@ jobs:
 
       - name: Run linting (will fail - script does not exist)
         id: lint
-        run: npm run lint 2>&1 | tee output.txt
         continue-on-error: true
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee output.txt
 
       - name: Logytics Analysis
         if: steps.lint.outcome == 'failure'
