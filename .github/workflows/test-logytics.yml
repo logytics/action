@@ -3,46 +3,57 @@ name: Test Logytics
 
 on:
   workflow_dispatch:  # Manual trigger
+  push:
+    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Deliberate Failure
-        id: fail
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests (will fail)
+        id: test
         run: |
-          echo "Installing dependencies..."
-          echo "Running application..."
-          echo "Error: Cannot find module 'redis'"
-          echo "    at Function.Module._resolveFilename (node:internal/modules/cjs/loader:1048:15)"
-          echo "    at Function.Module._load (node:internal/modules/cjs/loader:901:27)"
-          echo "    at Module.require (node:internal/modules/cjs/loader:1115:19)"
-          echo "    at require (node:internal/modules/helpers:130:18)"
-          echo "    at Object.<anonymous> (/app/src/index.js:3:15)"
-          echo "npm ERR! Test failed. See above for more details."
-          exit 1
+          # Simulate a real test failure
+          node -e "
+            console.log('Running tests...');
+            console.log('');
+            console.log('  User API');
+            console.log('    ✓ should create user');
+            console.log('    ✗ should connect to redis');
+            console.log('');
+            console.log('Error: Cannot find module \"redis\"');
+            console.log('    at Function.Module._resolveFilename (node:internal/modules/cjs/loader:1048:15)');
+            console.log('    at Function.Module._load (node:internal/modules/cjs/loader:901:27)');
+            console.log('    at Module.require (node:internal/modules/cjs/loader:1115:19)');
+            console.log('    at require (node:internal/modules/helpers:130:18)');
+            console.log('    at Object.<anonymous> (/app/src/db/redis.js:1:15)');
+            console.log('');
+            console.log('1 passing (45ms)');
+            console.log('1 failing');
+            process.exit(1);
+          " 2>&1 | tee test-output.txt
         continue-on-error: true
 
-      - name: Capture logs
-        if: steps.fail.outcome == 'failure'
-        run: |
-          echo "FAILED_LOGS<<EOF" >> $GITHUB_ENV
-          echo "Error: Cannot find module 'redis'" >> $GITHUB_ENV
-          echo "    at Function.Module._resolveFilename (node:internal/modules/cjs/loader:1048:15)" >> $GITHUB_ENV
-          echo "    at Function.Module._load (node:internal/modules/cjs/loader:901:27)" >> $GITHUB_ENV
-          echo "    at Module.require (node:internal/modules/cjs/loader:1115:19)" >> $GITHUB_ENV
-          echo "    at require (node:internal/modules/helpers:130:18)" >> $GITHUB_ENV
-          echo "    at Object.<anonymous> (/app/src/index.js:3:15)" >> $GITHUB_ENV
-          echo "npm ERR! Test failed. See above for more details." >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
       - name: Logytics Analysis
-        if: steps.fail.outcome == 'failure'
+        if: steps.test.outcome == 'failure'
         uses: logytics/action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          logs: ${{ env.FAILED_LOGS }}
+          logs: |
+            $(cat test-output.txt)
 
       - name: Fail workflow
-        if: steps.fail.outcome == 'failure'
-        run: exit 1
+        if: steps.test.outcome == 'failure'
+        run: |
+          echo "Test failed - see Logytics analysis in Summary"
+          exit 1
