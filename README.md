@@ -119,7 +119,7 @@ jobs:
 
 Logytics works with self-hosted runners. Ensure your runner has:
 
-- Node.js 20 or later
+- GitHub Actions runner v2.308.0+ (includes Node.js 20 runtime automatically)
 - Network access to `api.openai.com`
 - Network access to `api.github.com`
 
