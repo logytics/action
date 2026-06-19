@@ -11,6 +11,7 @@ async function run() {
     const model = core.getInput('model') || 'gpt-4o-mini';
     const maxLogLines = parseInt(core.getInput('max-log-lines') || '500', 10);
     const githubToken = core.getInput('github-token') || process.env.GITHUB_TOKEN;
+    const directLogs = core.getInput('logs') || '';
 
     if (!githubToken) {
       throw new Error('GitHub token is required. Provide it via github-token input or GITHUB_TOKEN environment variable.');
@@ -27,7 +28,7 @@ async function run() {
     }
 
     core.info('Collecting logs from failed steps...');
-    const rawLogs = await collectLogs(githubToken);
+    const rawLogs = await collectLogs(githubToken, directLogs);
 
     if (!rawLogs) {
       core.warning('No failed job logs found. Skipping analysis.');

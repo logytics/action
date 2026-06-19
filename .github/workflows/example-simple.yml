@@ -1,0 +1,34 @@
+# Simplest Logytics example - captures logs inline
+name: CI Simple
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        id: tests
+        run: |
+          npm ci
+          npm test 2>&1 | tee test-output.txt
+        continue-on-error: true
+
+      - name: Logytics Analysis
+        if: steps.tests.outcome == 'failure'
+        uses: logytics/action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          logs: |
+            ${{ steps.tests.outcome == 'failure' && '$(cat test-output.txt)' || '' }}
+
+      - name: Fail if tests failed
+        if: steps.tests.outcome == 'failure'
+        run: |
+          cat test-output.txt
+          exit 1

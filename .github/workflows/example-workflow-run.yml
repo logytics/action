@@ -1,0 +1,20 @@
+# Logytics using workflow_run trigger (recommended for full log access)
+# This workflow runs AFTER your main CI workflow completes
+name: Logytics Analysis
+
+on:
+  workflow_run:
+    workflows: ["CI"]  # Name of your main workflow
+    types:
+      - completed
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Logytics Analysis
+        uses: logytics/action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

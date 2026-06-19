@@ -8,24 +8,61 @@ AI-powered GitHub Actions failure analysis. Get instant, developer-friendly expl
 - Uses AI to identify root causes and suggest fixes
 - Outputs clean summaries directly in GitHub Actions Summary
 - Zero UI, zero database, zero accounts
-- Single-line installation
 
 ## Quick Start
 
-Add Logytics to your workflow:
+There are two ways to use Logytics:
+
+### Option 1: Inline Log Capture (Recommended)
+
+Capture output from your steps and pass to Logytics:
 
 ```yaml
-- uses: logytics/action@v1
-  if: failure()
+- name: Run tests
+  id: tests
+  run: npm test 2>&1 | tee output.txt
+  continue-on-error: true
+
+- name: Logytics Analysis
+  if: steps.tests.outcome == 'failure'
+  uses: logytics/action@v1
   with:
     openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+    logs: $(cat output.txt)
+
+- name: Fail if tests failed
+  if: steps.tests.outcome == 'failure'
+  run: exit 1
 ```
 
-That's it! When a step fails, Logytics will analyze the logs and provide an explanation in the workflow summary.
+### Option 2: Workflow Run Trigger
+
+Create a separate workflow that triggers after your CI fails:
+
+```yaml
+# .github/workflows/logytics.yml
+name: Logytics Analysis
+
+on:
+  workflow_run:
+    workflows: ["CI"]  # Your main workflow name
+    types: [completed]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - uses: logytics/action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+```
+
+This approach has full access to completed job logs via the GitHub API.
 
 ## Example Output
 
-When a step fails with an error like `Cannot find module 'redis'`, Logytics generates:
+When a step fails with `Cannot find module 'redis'`, Logytics generates:
 
 ### Logytics Analysis
 
@@ -53,6 +90,7 @@ npm install redis
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `openai-api-key` | OpenAI API key for AI analysis | Yes | - |
+| `logs` | Log content to analyze (for inline capture) | No | - |
 | `model` | OpenAI model to use | No | `gpt-4o-mini` |
 | `max-log-lines` | Maximum log lines to analyze | No | `500` |
 | `github-token` | GitHub token for API access | No | `${{ github.token }}` |
@@ -65,16 +103,12 @@ npm install redis
 | `suggested-fix` | Suggested fix for the failure |
 | `confidence` | AI confidence score (0-100) |
 
-## Full Workflow Example
+## Full Example with Multiple Steps
 
 ```yaml
 name: CI
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push, pull_request]
 
 jobs:
   build:
@@ -90,42 +124,51 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run linting
+        id: lint
+        run: npm run lint 2>&1 | tee lint.txt
+        continue-on-error: true
+
       - name: Run tests
-        run: npm test
+        id: test
+        run: npm test 2>&1 | tee test.txt
+        continue-on-error: true
+
+      - name: Collect failed logs
+        if: failure() || steps.lint.outcome == 'failure' || steps.test.outcome == 'failure'
+        run: |
+          echo "LOGS<<EOF" >> $GITHUB_ENV
+          [ "${{ steps.lint.outcome }}" == "failure" ] && echo "=== Lint ===" && cat lint.txt
+          [ "${{ steps.test.outcome }}" == "failure" ] && echo "=== Test ===" && cat test.txt
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Logytics Analysis
+        if: failure() || steps.lint.outcome == 'failure' || steps.test.outcome == 'failure'
         uses: logytics/action@v1
-        if: failure()
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          logs: ${{ env.LOGS }}
+
+      - name: Fail workflow
+        if: steps.lint.outcome == 'failure' || steps.test.outcome == 'failure'
+        run: exit 1
 ```
 
 ## How It Works
 
-1. **Detect Failure**: Logytics runs only when a previous step fails (`if: failure()`)
-2. **Collect Logs**: Extracts logs from failed steps using the GitHub API
-3. **Clean Logs**: Removes noise (ANSI codes, progress bars, debug output) while keeping errors and stack traces
-4. **AI Analysis**: Sends cleaned logs to OpenAI for analysis
-5. **Generate Summary**: Writes a formatted summary to GitHub Actions Summary
+1. **Collect Logs**: Captures output from failed steps (inline or via API)
+2. **Clean Logs**: Removes noise (ANSI codes, progress bars, debug output)
+3. **AI Analysis**: Sends cleaned logs to OpenAI for analysis
+4. **Generate Summary**: Writes a formatted summary to GitHub Actions Summary
 
 ## Privacy & Security
 
 - Logs are sent to OpenAI for analysis
 - Use your own OpenAI API key
 - No data is stored or collected by Logytics
-- Recommended: use with private repositories cautiously
-
-## Using with Self-Hosted Runners
-
-Logytics works with self-hosted runners. Ensure your runner has:
-
-- GitHub Actions runner v2.308.0+ (includes Node.js 20 runtime automatically)
-- Network access to `api.openai.com`
-- Network access to `api.github.com`
+- Be cautious with sensitive data in logs
 
 ## Cost Considerations
-
-Logytics uses OpenAI's API which has associated costs:
 
 - Default model: `gpt-4o-mini` (most cost-effective)
 - Typical analysis: ~500-2000 tokens
@@ -134,13 +177,8 @@ Logytics uses OpenAI's API which has associated costs:
 ## Development
 
 ```bash
-# Install dependencies
 npm install
-
-# Build the action
 npm run build
-
-# Run tests
 npm test
 ```
 

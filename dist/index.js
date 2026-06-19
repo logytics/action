@@ -30138,6 +30138,23 @@ module.exports = {
 const github = __nccwpck_require__(3228);
 const core = __nccwpck_require__(7484);
 
+async function getCurrentJobInfo(octokit, owner, repo, runId) {
+  const { data: jobs } = await octokit.rest.actions.listJobsForWorkflowRun({
+    owner,
+    repo,
+    run_id: runId,
+  });
+
+  const currentJob = jobs.jobs.find(job => job.status === 'in_progress');
+
+  if (currentJob) {
+    const failedSteps = currentJob.steps.filter(step => step.conclusion === 'failure');
+    return { job: currentJob, failedSteps };
+  }
+
+  return null;
+}
+
 async function getFailedJobLogs(octokit, owner, repo, runId) {
   const { data: jobs } = await octokit.rest.actions.listJobsForWorkflowRun({
     owner,
@@ -30178,10 +30195,31 @@ async function getFailedJobLogs(octokit, owner, repo, runId) {
   return logs.join('\n');
 }
 
-async function collectLogs(token) {
+async function downloadWorkflowRunLogs(octokit, owner, repo, runId) {
+  try {
+    const { data } = await octokit.rest.actions.downloadWorkflowRunLogs({
+      owner,
+      repo,
+      run_id: runId,
+    });
+    return data;
+  } catch (error) {
+    core.debug(`Could not download workflow run logs: ${error.message}`);
+    return null;
+  }
+}
+
+async function collectLogs(token, directLogs = null) {
+  if (directLogs && directLogs.trim()) {
+    core.info('Using directly provided logs');
+    return directLogs;
+  }
+
   const context = github.context;
 
-  if (!context.payload.workflow_run && !context.runId) {
+  const runId = context.payload.workflow_run?.id || context.runId;
+
+  if (!runId) {
     core.warning('No workflow run context available');
     return null;
   }
@@ -30189,13 +30227,35 @@ async function collectLogs(token) {
   const octokit = github.getOctokit(token);
   const owner = context.repo.owner;
   const repo = context.repo.repo;
-  const runId = context.runId;
 
   core.info(`Collecting logs for run ${runId} in ${owner}/${repo}`);
 
   try {
-    const logs = await getFailedJobLogs(octokit, owner, repo, runId);
-    return logs;
+    const completedJobLogs = await getFailedJobLogs(octokit, owner, repo, runId);
+    if (completedJobLogs) {
+      return completedJobLogs;
+    }
+
+    const currentJobInfo = await getCurrentJobInfo(octokit, owner, repo, runId);
+    if (currentJobInfo && currentJobInfo.failedSteps.length > 0) {
+      core.info(`Found ${currentJobInfo.failedSteps.length} failed step(s) in current job`);
+
+      const stepInfo = currentJobInfo.failedSteps.map(step =>
+        `Step "${step.name}" failed (conclusion: ${step.conclusion})`
+      ).join('\n');
+
+      core.warning(
+        'Cannot download logs for in-progress job. ' +
+        'For better analysis, use the workflow_run trigger or provide logs directly via the "logs" input.'
+      );
+
+      return `Failed steps detected:\n${stepInfo}\n\n` +
+        `Note: Full logs are not available for in-progress jobs. ` +
+        `Consider using workflow_run trigger for complete log analysis.`;
+    }
+
+    core.warning('No failed job logs found');
+    return null;
   } catch (error) {
     core.error(`Failed to collect logs: ${error.message}`);
     throw error;
@@ -30224,7 +30284,8 @@ async function getWorkflowRunInfo(token) {
 
 module.exports = {
   collectLogs,
-  getWorkflowRunInfo
+  getWorkflowRunInfo,
+  getCurrentJobInfo
 };
 
 
@@ -32318,6 +32379,7 @@ async function run() {
     const model = core.getInput('model') || 'gpt-4o-mini';
     const maxLogLines = parseInt(core.getInput('max-log-lines') || '500', 10);
     const githubToken = core.getInput('github-token') || process.env.GITHUB_TOKEN;
+    const directLogs = core.getInput('logs') || '';
 
     if (!githubToken) {
       throw new Error('GitHub token is required. Provide it via github-token input or GITHUB_TOKEN environment variable.');
@@ -32334,7 +32396,7 @@ async function run() {
     }
 
     core.info('Collecting logs from failed steps...');
-    const rawLogs = await collectLogs(githubToken);
+    const rawLogs = await collectLogs(githubToken, directLogs);
 
     if (!rawLogs) {
       core.warning('No failed job logs found. Skipping analysis.');

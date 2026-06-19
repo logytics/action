@@ -22,6 +22,10 @@ inputs:
     description: 'GitHub token for API access'
     required: false
     default: '${{ github.token }}'
+  logs:
+    description: 'Direct log content to analyze (optional, for capturing output from previous steps)'
+    required: false
+    default: ''
 
 outputs:
   root-cause:
