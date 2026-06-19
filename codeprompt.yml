@@ -1,0 +1,286 @@
+# Project: BuildLens
+
+Build an open-source GitHub Action called **BuildLens**.
+
+## Goal
+
+When a GitHub Actions workflow fails, BuildLens automatically collects logs from failed steps, sends them to an AI model, and generates a concise, developer-friendly explanation directly in the GitHub Actions **Build Summary**.
+
+The goal is to eliminate the need for developers to read long CI logs.
+
+---
+
+# Core Principles
+
+* Zero UI
+* Zero database
+* Zero accounts
+* Single-line installation
+* Open-source
+* Lightweight and fast
+* Designed for future SaaS extension (but NOT now)
+
+---
+
+# Example Usage
+
+```yaml id="c1a9k2"
+- uses: buildlens/action@v1
+  if: failure()
+  with:
+    openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+```
+
+---
+
+# Behavior Example
+
+A step fails:
+
+```yaml id="d92kq1"
+- run: npm test
+```
+
+Logs:
+
+```id="x91mqo"
+Error: Cannot find module 'redis'
+```
+
+BuildLens output in GitHub Actions Summary:
+
+# BuildLens Summary
+
+## Root Cause
+
+Missing dependency: `redis`
+
+## Key Error
+
+Cannot find module 'redis'
+
+## Suggested Fix
+
+```bash id="k21p0z"
+npm install redis
+```
+
+## Explanation
+
+The code is importing the Redis package, but it is not installed in the environment.
+
+## Confidence
+
+92%
+
+---
+
+# Technical Requirements
+
+## Platform
+
+* Node.js 20+
+* JavaScript (NOT TypeScript)
+* GitHub Actions Toolkit (`@actions/core`, `@actions/github`)
+* OpenAI API (default model: gpt-4o-mini)
+
+---
+
+# Features
+
+## 1. Detect Failure
+
+Only run when previous step fails:
+
+```yaml id="f91l2k"
+if: failure()
+```
+
+---
+
+## 2. Collect Logs
+
+Extract logs from failed steps in the workflow run.
+
+Use GitHub Actions context + API if needed.
+
+Focus only on failed jobs/steps.
+
+---
+
+## 3. Log Cleaning
+
+Before sending to AI:
+
+Remove:
+
+* ANSI color codes
+* Repeated lines
+* Progress bars
+* Debug noise
+* Build system noise
+
+Keep:
+
+* Stack traces
+* Error messages
+* File paths
+* Relevant warnings
+
+---
+
+## 4. AI Prompt Format
+
+Send cleaned logs to the model and request STRICT JSON output:
+
+```json id="p92k1a"
+{
+  "rootCause": "",
+  "keyError": "",
+  "explanation": "",
+  "suggestedFix": "",
+  "confidence": 0
+}
+```
+
+Rules:
+
+* Keep output short and practical
+* No long explanations
+* No markdown inside JSON
+* Confidence must be 0–100 integer
+
+---
+
+## 5. GitHub Actions Summary Output
+
+Write formatted markdown using:
+
+```js id="z91kq0"
+core.summary
+```
+
+Sections:
+
+* Root Cause
+* Key Error
+* Explanation
+* Suggested Fix
+* Confidence
+
+Make it clean, readable, and developer-friendly.
+
+---
+
+# Architecture
+
+```text id="a82kq9"
+GitHub Action
+   ↓
+Detect failure (if: failure())
+   ↓
+Collect logs
+   ↓
+Clean logs
+   ↓
+Send to OpenAI
+   ↓
+Parse JSON response
+   ↓
+Render Markdown summary
+   ↓
+Write to GitHub Actions Summary
+```
+
+---
+
+# Repository Structure (JavaScript only)
+
+```text id="m10kq2"
+src/
+  index.js
+  logCollector.js
+  logCleaner.js
+  promptBuilder.js
+  aiClient.js
+  summaryWriter.js
+  utils.js
+
+tests/
+
+action.yml
+
+README.md
+```
+
+---
+
+# Implementation Details
+
+## index.js
+
+Main entry point:
+
+* Detect failure context
+* Trigger log collection
+* Call AI pipeline
+* Write summary
+
+---
+
+## aiClient.js
+
+* Calls OpenAI API using fetch or axios
+* Handles retries
+* Parses JSON safely
+
+---
+
+## logCleaner.js
+
+* Strip ANSI codes
+* Remove noise lines
+* Limit token size (important for cost control)
+
+---
+
+## summaryWriter.js
+
+Uses:
+
+```js id="c81mq2"
+core.summary.addRaw()
+core.summary.write()
+```
+
+---
+
+# Future Features (DO NOT IMPLEMENT)
+
+* Slack notifications
+* PR comments
+* Failure history database
+* Cross-repo intelligence
+* Pattern detection
+* SaaS dashboard
+* Billing / Stripe
+
+Keep scope strictly MVP.
+
+---
+
+# Deliverables
+
+1. Fully working JavaScript GitHub Action
+2. action.yml configured properly
+3. Clean modular code
+4. README with setup instructions
+5. Example workflow usage
+6. Example output screenshots (or sample markdown output)
+7. Production-ready structure (no pseudo-code, no TODOs)
+
+---
+
+# Important
+
+This must feel like a real, installable GitHub Action that developers would trust in production, not a prototype.

@@ -1,0 +1,36 @@
+name: 'BuildLens'
+description: 'AI-powered GitHub Actions failure analysis - get instant explanations for CI failures'
+author: 'BuildLens'
+
+branding:
+  icon: 'search'
+  color: 'blue'
+
+inputs:
+  openai-api-key:
+    description: 'OpenAI API key for AI analysis'
+    required: true
+  model:
+    description: 'OpenAI model to use'
+    required: false
+    default: 'gpt-4o-mini'
+  max-log-lines:
+    description: 'Maximum number of log lines to analyze'
+    required: false
+    default: '500'
+  github-token:
+    description: 'GitHub token for API access'
+    required: false
+    default: '${{ github.token }}'
+
+outputs:
+  root-cause:
+    description: 'Root cause of the failure'
+  suggested-fix:
+    description: 'Suggested fix for the failure'
+  confidence:
+    description: 'AI confidence score (0-100)'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

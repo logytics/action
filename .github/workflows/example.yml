@@ -1,0 +1,45 @@
+# Example workflow showing BuildLens usage
+# Copy this to your repository and customize as needed
+
+name: CI with BuildLens
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # BuildLens analyzes failures and provides AI-powered explanations
+      - name: BuildLens Analysis
+        uses: buildlens/action@v1
+        if: failure()
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          # Optional: use a different model
+          # model: gpt-4o
+          # Optional: analyze more log lines
+          # max-log-lines: 1000
