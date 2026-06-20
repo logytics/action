@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create (e.g., v1.0.1, v1.1.0, v2)'
+        required: true
+        type: string
+      update_major:
+        description: 'Also update major version tag (e.g., v1, v2)'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build dist
+        run: npm run build
+
+      - name: Commit dist
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dist/
+          git diff --staged --quiet || git commit -m "Build dist for ${{ inputs.tag }}"
+          git push
+
+      - name: Create tag
+        run: |
+          git tag -fa ${{ inputs.tag }} -m "Release ${{ inputs.tag }}"
+          git push origin ${{ inputs.tag }} --force
+
+      - name: Update major version tag
+        if: inputs.update_major
+        run: |
+          MAJOR=$(echo "${{ inputs.tag }}" | grep -oE '^v[0-9]+')
+          if [ -n "$MAJOR" ]; then
+            git tag -fa $MAJOR -m "Update $MAJOR to ${{ inputs.tag }}"
+            git push origin $MAJOR --force
+            echo "Updated $MAJOR tag"
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Release Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Tag created: \`${{ inputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.update_major }}" == "true" ]; then
+            MAJOR=$(echo "${{ inputs.tag }}" | grep -oE '^v[0-9]+')
+            echo "- Major tag updated: \`$MAJOR\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Users can now use:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`yaml" >> $GITHUB_STEP_SUMMARY
+          echo "uses: logytics/action@${{ inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
