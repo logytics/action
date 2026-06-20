@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run linting (will fail - script does not exist)
+      - name: Run linting
         id: lint
         continue-on-error: true
         run: |
@@ -33,6 +33,7 @@ jobs:
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           logs: |
+            === Step Failed: Run linting ===
             $(cat output.txt)
 
       - name: Fail workflow
